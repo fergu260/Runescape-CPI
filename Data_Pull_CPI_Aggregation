@@ -1,0 +1,74 @@
+#Creating a CPI-esque program to track inflation in an online economy
+#I'll be pulling from oldschool runescape's Grand Exchange data to follow
+#prices over time.  The basket of goods will try and match the CPI as 
+#closely as possible.
+
+#We're using requests to pull data from the oldschool website
+import requests
+
+#Want to convert Keys in the final dict to datetime, so we can do timeseries
+#analysis but haven't completed this step yet: from datetime import datetime
+
+
+#This function is being used to sort out variable definitions from observations
+#Took this idea from a stackexchange post
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+#File storing all of the urls that we're pulling from
+url_list = open("url_list.txt","r")
+url_list_contents = url_list.readlines()
+
+#Initializing the dictionary to store our key-dates and values
+value_dict = {}
+
+for url in url_list_contents:
+    try:
+        r = requests.get(url.strip('\n'))
+        #Creating a variable to store the html content from the webpage
+        r_content = (str(r.content))
+        #Initializing our indexes of variable 'average180' instances    
+        index_list = []
+        #Adding the indices for 'average180' so we can grab the values
+        index_list.append(([i for i in range(len(r_content)) \
+        if r_content.startswith('average180', i)]))
+    
+        #Initializing our list to store the variable values
+        value_list = []
+    
+        #Grabbing the text/variable values using our indices
+        for item in index_list[0]:
+            value_list.append((r_content[item:item+55]).split(','))
+        
+        #Getting rid of variable definitions and only grabbing observations, 
+        #also turning the text into integers so we can use them for analysis    
+        def clean_dict(value_list,value_dict):
+            i = 0
+            for value in value_list:
+                if is_number(value[1]) == True:
+                    if value_list[i][0].split("'")[1].strip("\\") in \
+                    value_dict.keys():
+                        value_dict[value_list[i][0].split("'")[1].strip("\\")] += \
+                        (int((value[1].strip("'"))))
+                    else:
+                        value_dict[value_list[i][0].split("'")[1].strip("\\")] = \
+                        (int((value[1].strip("'"))))
+                i += 1
+        #Running the above function on our requested data
+        clean_dict(value_list,value_dict)
+    
+    #Handling bad urls in the infile we are reading
+    except ValueError:
+        print("The url on line",url_list_contents.index(url),"is broken:",url)        
+                    
+def dict_avg(value_dict):
+    avg_val = 0
+    for key in value_dict:
+        avg_val += value_dict[key]
+    avg_val = avg_val/len(value_dict)
+    return avg_val
+     
